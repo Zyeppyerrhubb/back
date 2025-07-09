@@ -1,0 +1,26 @@
+[
+  {
+    "nama": "La Grande",
+    "harga": 50000,
+    "stok": 0,
+    "gambar": ""
+  },
+  {
+    "nama": "La Vaca",
+    "harga": 4000,
+    "stok": 1,
+    "gambar": ""
+  },
+  {
+    "nama": "Sammyni",
+    "harga": 4000,
+    "stok": 0,
+    "gambar": ""
+  },
+  {
+    "nama": "Tralalelo",
+    "harga": 1000,
+    "stok": 4,
+    "gambar": ""
+  }
+]

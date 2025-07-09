@@ -1,15 +1,21 @@
-entrypoint = "main.py"
+run = "python3 main.py"
+language = "python3"
 modules = ["python-3.11"]
 
+[interpreter]
+command = ["python3", "-u", "main.py"]
+
 [nix]
-channel = "stable-24_05"
+packages = ["python39Packages.gunicorn"]
 
-[unitTest]
-language = "python3"
+[[ports]]
+localPort = 443
+externalPort = 3000
 
-[gitHubImport]
-requiredFiles = [".replit", "replit.nix"]
+[[ports]]
+localPort = 3000
+externalPort = 80
 
-[deployment]
-run = ["python3", "main.py"]
-deploymentTarget = "cloudrun"
+[[ports]]
+localPort = 8080
+externalPort = 8080
