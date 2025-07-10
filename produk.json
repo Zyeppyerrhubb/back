@@ -8,7 +8,7 @@
   {
     "nama": "La Vaca",
     "harga": 4000,
-    "stok": 1,
+    "stok": 0,
     "gambar": ""
   },
   {
@@ -20,7 +20,43 @@
   {
     "nama": "Tralalelo",
     "harga": 1000,
-    "stok": 4,
+    "stok": 0,
+    "gambar": ""
+  },
+  {
+    "nama": "Matteo",
+    "harga": 2000,
+    "stok": 3,
+    "gambar": ""
+  },
+  {
+    "nama": "Cocofanto",
+    "harga": 500,
+    "stok": 1,
+    "gambar": ""
+  },
+  {
+    "nama": "Samito",
+    "harga": 3000,
+    "stok": 2,
+    "gambar": ""
+  },
+  {
+    "nama": "Graipus Normal",
+    "harga": 15000,
+    "stok": 0,
+    "gambar": ""
+  },
+  {
+    "nama": "Graipus Rainbow",
+    "harga": 25000,
+    "stok": 0,
+    "gambar": ""
+  },
+  {
+    "nama": "Turbo 3000",
+    "harga": 3000,
+    "stok": 2,
     "gambar": ""
   }
 ]
