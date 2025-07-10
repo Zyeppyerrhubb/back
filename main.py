@@ -1,44 +1,51 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 import uuid
 import json
 import os
 
 app = Flask(__name__)
-CORS(app)
+app.secret_key = "zyensecretkey"  # buat session login
+CORS(app, supports_credentials=True)
 
 DATA_FILE = 'pesanan.json'
 PRODUK_FILE = 'produk.json'
+USER_FILE = 'user.json'
 
-# 🔄 Load data pesanan
-def load_pesanan():
-    if not os.path.exists(DATA_FILE):
+# 🔄 Load & Save fungsi umum
+def load_json(file):
+    if not os.path.exists(file):
         return []
-    with open(DATA_FILE, 'r') as f:
+    with open(file, 'r') as f:
         try:
             return json.load(f)
         except json.JSONDecodeError:
             return []
 
-# 💾 Simpan data pesanan
-def save_pesanan(pesanan_list):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(pesanan_list, f, indent=2)
+def save_json(file, data):
+    with open(file, 'w') as f:
+        json.dump(data, f, indent=2)
 
-# 🔄 Load data produk
-def load_produk():
-    if not os.path.exists(PRODUK_FILE):
-        return []
-    with open(PRODUK_FILE, 'r') as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return []
+# 🧑‍💻 AUTH LOGIN
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+    users = load_json(USER_FILE)
 
-# 💾 Simpan data produk
-def save_produk(produk_list):
-    with open(PRODUK_FILE, 'w') as f:
-        json.dump(produk_list, f, indent=2)
+    for user in users:
+        if user["username"] == username and user["password"] == password:
+            session["username"] = username
+            session["role"] = user["role"]
+            return jsonify({"message": "✅ Login berhasil", "role": user["role"]})
+    
+    return jsonify({"message": "❌ Username atau password salah"}), 401
+
+@app.route("/api/auth/logout", methods=["GET"])
+def logout():
+    session.clear()
+    return jsonify({"message": "✅ Logout berhasil"})
 
 # ✅ POST /api/checkout
 @app.route('/api/checkout', methods=['POST'])
@@ -47,7 +54,7 @@ def checkout():
     if not data:
         return jsonify({"message": "❌ Data tidak valid"}), 400
 
-    produk_list = load_produk()
+    produk_list = load_json(PRODUK_FILE)
     produk_ditemukan = next((p for p in produk_list if p['nama'].lower() == data['nama_produk'].lower()), None)
 
     if not produk_ditemukan:
@@ -56,24 +63,30 @@ def checkout():
     if produk_ditemukan['stok'] < data['jumlah']:
         return jsonify({"message": "❌ Stok tidak cukup"}), 400
 
-    pesanan_list = load_pesanan()
+    pesanan_list = load_json(DATA_FILE)
     data['id'] = str(uuid.uuid4())
     data['status'] = 'pending'
     pesanan_list.append(data)
-    save_pesanan(pesanan_list)
+    save_json(DATA_FILE, pesanan_list)
 
     return jsonify({"message": "✅ Pesanan diterima", "id": data['id']}), 200
 
 # 📦 GET /api/admin/pesanan
 @app.route('/api/admin/pesanan', methods=['GET'])
 def get_pesanan():
-    return jsonify(load_pesanan()), 200
+    if session.get("role") != "admin":
+        return jsonify({"message": "🚫 Akses ditolak"}), 403
+
+    return jsonify(load_json(DATA_FILE)), 200
 
 # 🔁 PUT /api/admin/pesanan/<id>
 @app.route('/api/admin/pesanan/<id>', methods=['PUT'])
 def update_status(id):
-    pesanan_list = load_pesanan()
-    produk_list = load_produk()
+    if session.get("role") != "admin":
+        return jsonify({"message": "🚫 Akses ditolak"}), 403
+
+    pesanan_list = load_json(DATA_FILE)
+    produk_list = load_json(PRODUK_FILE)
 
     for pesanan in pesanan_list:
         if pesanan['id'] == id:
@@ -85,10 +98,10 @@ def update_status(id):
                 if produk['nama'].lower() == pesanan['nama_produk'].lower():
                     produk['stok'] -= pesanan['jumlah']
                     produk['stok'] = max(produk['stok'], 0)
-                    save_produk(produk_list)
+                    save_json(PRODUK_FILE, produk_list)
                     break
 
-            save_pesanan(pesanan_list)
+            save_json(DATA_FILE, pesanan_list)
             return jsonify({"message": "✅ Status berhasil diperbarui & stok dikurangi"}), 200
 
     return jsonify({"message": "❌ Pesanan tidak ditemukan"}), 404
@@ -96,7 +109,7 @@ def update_status(id):
 # ✅ GET /api/status/<id>
 @app.route('/api/status/<id>', methods=['GET'])
 def cek_status(id):
-    pesanan_list = load_pesanan()
+    pesanan_list = load_json(DATA_FILE)
     for pesanan in pesanan_list:
         if pesanan['id'] == id:
             return jsonify({"status": pesanan['status']}), 200
@@ -105,16 +118,19 @@ def cek_status(id):
 # ✅ GET /api/produk
 @app.route('/api/produk', methods=['GET'])
 def get_produk():
-    return jsonify(load_produk()), 200
+    return jsonify(load_json(PRODUK_FILE)), 200
 
 # ✅ POST /api/admin/produk
 @app.route('/api/admin/produk', methods=['POST'])
 def tambah_produk():
+    if session.get("role") != "admin":
+        return jsonify({"message": "🚫 Akses ditolak"}), 403
+
     data = request.get_json()
     if not data or 'nama' not in data or 'harga' not in data or 'stok' not in data:
         return jsonify({"message": "❌ Data tidak lengkap"}), 400
 
-    produk_list = load_produk()
+    produk_list = load_json(PRODUK_FILE)
     for p in produk_list:
         if p['nama'].lower() == data['nama'].lower():
             return jsonify({"message": "❗ Produk sudah ada"}), 400
@@ -127,25 +143,28 @@ def tambah_produk():
     }
 
     produk_list.append(produk_baru)
-    save_produk(produk_list)
+    save_json(PRODUK_FILE, produk_list)
 
     return jsonify({"message": "✅ Produk berhasil ditambahkan"}), 200
 
 # ✏️ PUT /api/admin/produk/<nama>
 @app.route('/api/admin/produk/<nama>', methods=['PUT'])
 def edit_produk(nama):
+    if session.get("role") != "admin":
+        return jsonify({"message": "🚫 Akses ditolak"}), 403
+
     data = request.get_json()
     if not data:
         return jsonify({"message": "❌ Data tidak dikirim"}), 400
 
-    produk_list = load_produk()
+    produk_list = load_json(PRODUK_FILE)
     for produk in produk_list:
         if produk['nama'].lower() == nama.lower():
             produk['nama'] = data.get('nama', produk['nama'])
             produk['harga'] = data.get('harga', produk['harga'])
             produk['stok'] = data.get('stok', produk['stok'])
             produk['gambar'] = data.get('gambar', produk.get('gambar', ''))
-            save_produk(produk_list)
+            save_json(PRODUK_FILE, produk_list)
             return jsonify({"message": "✅ Produk berhasil diedit"}), 200
 
     return jsonify({"message": "❌ Produk tidak ditemukan"}), 404
@@ -153,14 +172,17 @@ def edit_produk(nama):
 # ❌ DELETE /api/admin/produk/<nama>
 @app.route('/api/admin/produk/<nama>', methods=['DELETE'])
 def hapus_produk(nama):
-    produk_list = load_produk()
+    if session.get("role") != "admin":
+        return jsonify({"message": "🚫 Akses ditolak"}), 403
+
+    produk_list = load_json(PRODUK_FILE)
     awal = len(produk_list)
     produk_list = [p for p in produk_list if p['nama'].lower() != nama.lower()]
 
     if len(produk_list) == awal:
         return jsonify({"message": "❌ Produk tidak ditemukan"}), 404
 
-    save_produk(produk_list)
+    save_json(PRODUK_FILE, produk_list)
     return jsonify({"message": "🗑️ Produk berhasil dihapus"}), 200
 
 # 🎨 Halaman Utama
