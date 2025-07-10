@@ -48,12 +48,7 @@ def checkout():
         return jsonify({"message": "❌ Data tidak valid"}), 400
 
     produk_list = load_produk()
-    produk_ditemukan = None
-
-    for p in produk_list:
-        if p['nama'].lower() == data['nama_produk'].lower():
-            produk_ditemukan = p
-            break
+    produk_ditemukan = next((p for p in produk_list if p['nama'].lower() == data['nama_produk'].lower()), None)
 
     if not produk_ditemukan:
         return jsonify({"message": "❌ Produk tidak ditemukan"}), 404
@@ -62,9 +57,7 @@ def checkout():
         return jsonify({"message": "❌ Stok tidak cukup"}), 400
 
     pesanan_list = load_pesanan()
-    if 'id' not in data:
-        data['id'] = str(uuid.uuid4())
-
+    data['id'] = str(uuid.uuid4())
     data['status'] = 'pending'
     pesanan_list.append(data)
     save_pesanan(pesanan_list)
@@ -81,7 +74,6 @@ def get_pesanan():
 def update_status(id):
     pesanan_list = load_pesanan()
     produk_list = load_produk()
-    updated = False
 
     for pesanan in pesanan_list:
         if pesanan['id'] == id:
@@ -89,23 +81,17 @@ def update_status(id):
                 return jsonify({"message": "❗ Sudah berhasil sebelumnya"}), 400
 
             pesanan['status'] = 'berhasil'
-            # kurangi stok
             for produk in produk_list:
                 if produk['nama'].lower() == pesanan['nama_produk'].lower():
                     produk['stok'] -= pesanan['jumlah']
-                    if produk['stok'] < 0:
-                        produk['stok'] = 0
+                    produk['stok'] = max(produk['stok'], 0)
                     save_produk(produk_list)
                     break
 
-            updated = True
-            break
+            save_pesanan(pesanan_list)
+            return jsonify({"message": "✅ Status berhasil diperbarui & stok dikurangi"}), 200
 
-    if updated:
-        save_pesanan(pesanan_list)
-        return jsonify({"message": "✅ Status berhasil diperbarui & stok dikurangi"}), 200
-    else:
-        return jsonify({"message": "❌ Pesanan tidak ditemukan"}), 404
+    return jsonify({"message": "❌ Pesanan tidak ditemukan"}), 404
 
 # ✅ GET /api/status/<id>
 @app.route('/api/status/<id>', methods=['GET'])
@@ -129,8 +115,6 @@ def tambah_produk():
         return jsonify({"message": "❌ Data tidak lengkap"}), 400
 
     produk_list = load_produk()
-
-    # cek biar nama produk ga dobel
     for p in produk_list:
         if p['nama'].lower() == data['nama'].lower():
             return jsonify({"message": "❗ Produk sudah ada"}), 400
@@ -139,7 +123,7 @@ def tambah_produk():
         "nama": data['nama'],
         "harga": data['harga'],
         "stok": data['stok'],
-        "gambar": data.get('gambar', '')  # default kosong kalau gak dikirim
+        "gambar": data.get('gambar', '')
     }
 
     produk_list.append(produk_baru)
@@ -155,29 +139,22 @@ def edit_produk(nama):
         return jsonify({"message": "❌ Data tidak dikirim"}), 400
 
     produk_list = load_produk()
-    updated = False
-
     for produk in produk_list:
         if produk['nama'].lower() == nama.lower():
             produk['nama'] = data.get('nama', produk['nama'])
             produk['harga'] = data.get('harga', produk['harga'])
             produk['stok'] = data.get('stok', produk['stok'])
             produk['gambar'] = data.get('gambar', produk.get('gambar', ''))
-            updated = True
-            break
+            save_produk(produk_list)
+            return jsonify({"message": "✅ Produk berhasil diedit"}), 200
 
-    if updated:
-        save_produk(produk_list)
-        return jsonify({"message": "✅ Produk berhasil diedit"}), 200
-    else:
-        return jsonify({"message": "❌ Produk tidak ditemukan"}), 404
+    return jsonify({"message": "❌ Produk tidak ditemukan"}), 404
 
 # ❌ DELETE /api/admin/produk/<nama>
 @app.route('/api/admin/produk/<nama>', methods=['DELETE'])
 def hapus_produk(nama):
     produk_list = load_produk()
     awal = len(produk_list)
-
     produk_list = [p for p in produk_list if p['nama'].lower() != nama.lower()]
 
     if len(produk_list) == awal:
@@ -185,6 +162,7 @@ def hapus_produk(nama):
 
     save_produk(produk_list)
     return jsonify({"message": "🗑️ Produk berhasil dihapus"}), 200
+
 # 🎨 Halaman Utama
 @app.route('/')
 def index():
