@@ -26,6 +26,24 @@ def save_json(file, data):
     with open(file, 'w') as f:
         json.dump(data, f, indent=2)
 
+# 🔐 REGISTER USER
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+    
+    if not username or not password:
+        return jsonify({"message": "❌ Username & password wajib diisi"}), 400
+
+    users = load_json(USER_FILE)
+    if any(u["username"] == username for u in users):
+        return jsonify({"message": "❗ Username sudah terdaftar"}), 400
+
+    users.append({"username": username, "password": password, "role": "user"})
+    save_json(USER_FILE, users)
+    return jsonify({"message": "✅ Akun berhasil dibuat"}), 201
+
 # 🧑‍💻 AUTH LOGIN
 @app.route("/api/auth/login", methods=["POST"])
 def login():
@@ -66,10 +84,22 @@ def checkout():
     pesanan_list = load_json(DATA_FILE)
     data['id'] = str(uuid.uuid4())
     data['status'] = 'pending'
+    if "username" in session:
+        data["username"] = session["username"]
     pesanan_list.append(data)
     save_json(DATA_FILE, pesanan_list)
 
     return jsonify({"message": "✅ Pesanan diterima", "id": data['id']}), 200
+
+# 👤 GET /api/pesanan-saya
+@app.route('/api/pesanan-saya', methods=['GET'])
+def pesanan_saya():
+    if "username" not in session:
+        return jsonify({"message": "🚫 Harus login terlebih dahulu"}), 401
+
+    pesanan_list = load_json(DATA_FILE)
+    user_pesanan = [p for p in pesanan_list if p.get("username") == session["username"]]
+    return jsonify(user_pesanan), 200
 
 # 📦 GET /api/admin/pesanan
 @app.route('/api/admin/pesanan', methods=['GET'])
