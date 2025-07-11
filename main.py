@@ -12,7 +12,6 @@ DATA_FILE = 'pesanan.json'
 PRODUK_FILE = 'produk.json'
 USER_FILE = 'user.json'
 
-# 🔄 Load & Save fungsi umum
 def load_json(file):
     if not os.path.exists(file):
         return []
@@ -26,7 +25,6 @@ def save_json(file, data):
     with open(file, 'w') as f:
         json.dump(data, f, indent=2)
 
-# 🔐 REGISTER USER
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -44,7 +42,6 @@ def register():
     save_json(USER_FILE, users)
     return jsonify({"message": "✅ Akun berhasil dibuat"}), 201
 
-# 🧑‍💻 AUTH LOGIN
 @app.route("/api/auth/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -65,7 +62,6 @@ def logout():
     session.clear()
     return jsonify({"message": "✅ Logout berhasil"})
 
-# ✅ POST /api/checkout
 @app.route('/api/checkout', methods=['POST'])
 def checkout():
     data = request.get_json()
@@ -84,14 +80,15 @@ def checkout():
     pesanan_list = load_json(DATA_FILE)
     data['id'] = str(uuid.uuid4())
     data['status'] = 'pending'
-    if "username" in session:
-        data["username"] = session["username"]
+    
+    # ✅ support user non-login
+    data["username"] = session["username"] if "username" in session else "guest"
+
     pesanan_list.append(data)
     save_json(DATA_FILE, pesanan_list)
 
     return jsonify({"message": "✅ Pesanan diterima", "id": data['id']}), 200
 
-# 👤 GET /api/pesanan-saya
 @app.route('/api/pesanan-saya', methods=['GET'])
 def pesanan_saya():
     if "username" not in session:
@@ -101,7 +98,6 @@ def pesanan_saya():
     user_pesanan = [p for p in pesanan_list if p.get("username") == session["username"]]
     return jsonify(user_pesanan), 200
 
-# 📦 GET /api/admin/pesanan
 @app.route('/api/admin/pesanan', methods=['GET'])
 def get_pesanan():
     if session.get("role") != "admin":
@@ -109,7 +105,6 @@ def get_pesanan():
 
     return jsonify(load_json(DATA_FILE)), 200
 
-# 🔁 PUT /api/admin/pesanan/<id>
 @app.route('/api/admin/pesanan/<id>', methods=['PUT'])
 def update_status(id):
     if session.get("role") != "admin":
@@ -136,7 +131,6 @@ def update_status(id):
 
     return jsonify({"message": "❌ Pesanan tidak ditemukan"}), 404
 
-# ✅ GET /api/status/<id>
 @app.route('/api/status/<id>', methods=['GET'])
 def cek_status(id):
     pesanan_list = load_json(DATA_FILE)
@@ -145,12 +139,10 @@ def cek_status(id):
             return jsonify({"status": pesanan['status']}), 200
     return jsonify({"message": "❌ Pesanan tidak ditemukan"}), 404
 
-# ✅ GET /api/produk
 @app.route('/api/produk', methods=['GET'])
 def get_produk():
     return jsonify(load_json(PRODUK_FILE)), 200
 
-# ✅ POST /api/admin/produk
 @app.route('/api/admin/produk', methods=['POST'])
 def tambah_produk():
     if session.get("role") != "admin":
@@ -177,7 +169,6 @@ def tambah_produk():
 
     return jsonify({"message": "✅ Produk berhasil ditambahkan"}), 200
 
-# ✏️ PUT /api/admin/produk/<nama>
 @app.route('/api/admin/produk/<nama>', methods=['PUT'])
 def edit_produk(nama):
     if session.get("role") != "admin":
@@ -199,7 +190,6 @@ def edit_produk(nama):
 
     return jsonify({"message": "❌ Produk tidak ditemukan"}), 404
 
-# ❌ DELETE /api/admin/produk/<nama>
 @app.route('/api/admin/produk/<nama>', methods=['DELETE'])
 def hapus_produk(nama):
     if session.get("role") != "admin":
@@ -215,7 +205,6 @@ def hapus_produk(nama):
     save_json(PRODUK_FILE, produk_list)
     return jsonify({"message": "🗑️ Produk berhasil dihapus"}), 200
 
-# 🎨 Halaman Utama
 @app.route('/')
 def index():
     return '''
@@ -253,6 +242,5 @@ def index():
     </html>
     '''
 
-# 🚀 Jalankan server
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
