@@ -14,12 +14,16 @@ def save_json(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=2)
 
-@app.route("/produk", methods=["GET"])
+@app.route("/")
+def home():
+    return "✅ Backend ZYEN STORE aktif!"
+
+@app.route("/api/produk", methods=["GET"])
 def get_produk():
     produk = load_json("produk.json")
     return jsonify(produk)
 
-@app.route("/checkout", methods=["POST"])
+@app.route("/api/checkout", methods=["POST"])
 def checkout():
     data = request.json
     pesanan = load_json("pesanan.json")
@@ -31,7 +35,7 @@ def checkout():
     save_json("pesanan.json", pesanan)
     return jsonify({"message": "Checkout berhasil", "id": id_transaksi})
 
-@app.route("/status/<id>", methods=["GET"])
+@app.route("/api/status/<id>", methods=["GET"])
 def get_status(id):
     pesanan = load_json("pesanan.json")
     for p in pesanan:
@@ -39,11 +43,11 @@ def get_status(id):
             return jsonify({"status": p["status"]})
     return jsonify({"status": "not found"}), 404
 
-@app.route("/pesanan", methods=["GET"])
+@app.route("/api/pesanan", methods=["GET"])
 def get_pesanan():
     return jsonify(load_json("pesanan.json"))
 
-@app.route("/ubah_status/<id>", methods=["POST"])
+@app.route("/api/ubah_status/<id>", methods=["POST"])
 def ubah_status(id):
     data = request.json
     status_baru = data.get("status")
