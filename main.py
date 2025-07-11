@@ -55,14 +55,5 @@ def ubah_status(id):
             return jsonify({"message": "Status diubah"})
     return jsonify({"message": "Pesanan tidak ditemukan"}), 404
 
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.json
-    user_db = load_json("user.json")
-    for u in user_db:
-        if u["username"] == data["username"] and u["password"] == data["password"]:
-            return jsonify({"message": "Login sukses", "role": u["role"]})
-    return jsonify({"message": "Login gagal"}), 401
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
